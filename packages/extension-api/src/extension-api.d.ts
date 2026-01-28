@@ -406,6 +406,10 @@ declare module '@podman-desktop/api' {
      * the vmTypeDisplayName property cannot be set if vmType is undefined
      */
     vmTypeDisplayName?: string;
+    /**
+     * Whether this connection is the default connection for CLI operations
+     */
+    isDefault?: boolean;
   }
 
   export interface PodCreatePortOptions {

@@ -368,10 +368,20 @@ describe.each<{
   describe('provider connections', () => {
     test('Expect to have two container connection region', () => {
       providerInfos.set([providerInfo]);
-      const { getAllByLabelText } = render(PreferencesResourcesRendering, {});
+      const { getByRole, getAllByRole } = render(PreferencesResourcesRendering, {});
 
-      const statuses = getAllByLabelText('Connection Status');
-      expect(statuses.length).toBe(2);
+      // Get the provider section region
+      const providerSection = getByRole('region', { name: providerInfo.id });
+      expect(providerSection).toBeInTheDocument();
+
+      // Get the first connection region by defaultName (the parametrized name)
+      const firstConnection = getByRole('region', { name: defaultName });
+      expect(firstConnection).toBeInTheDocument();
+
+      // Verify there are at least 2 connection regions (cards) by checking there are multiple regions in total
+      const allRegions = getAllByRole('region');
+      // Should have at least: provider section + 2 connection cards
+      expect(allRegions.length).toBeGreaterThanOrEqual(3);
     });
 
     test('Expect to be start, delete actions enabled and stop, restart disabled when container stopped', async () => {
@@ -768,12 +778,12 @@ describe('container provider connections', () => {
     // get the region containing the content for the default connection
     const region = getByRole('region', { name: defaultContainerConnectionName });
 
-    const typeDiv = within(region).getByLabelText(`${defaultContainerConnectionName} type`);
-    expect(typeDiv.textContent).toBe('Podman endpoint');
-    const endpointSpan = await vi.waitFor(() => within(region).getByTitle('unix://socket'));
-    expect(endpointSpan.textContent).toBe('unix://socket');
-    const connectionType = within(region).getByLabelText('Connection Type');
-    expect(connectionType.textContent).equal('Libkrun');
+    // In the new layout, type is shown as a badge/tag within the card
+    const podmanType = within(region).getByText('Podman');
+    expect(podmanType).toBeInTheDocument();
+    // Platform is shown as text within the card
+    const platform = within(region).getByText('Libkrun');
+    expect(platform).toBeInTheDocument();
   });
 
   test('Expect type to be reported for Docker engines', async () => {
@@ -785,10 +795,9 @@ describe('container provider connections', () => {
     // get the region containing the content for the default connection
     const region = getByRole('region', { name: defaultContainerConnectionName });
 
-    const typeDiv = within(region).getByLabelText(`${defaultContainerConnectionName} type`);
-    expect(typeDiv.textContent).toBe('Docker endpoint');
-    const endpointSpan = await vi.waitFor(() => within(region).getByTitle('unix://socket'));
-    expect(endpointSpan.textContent).toBe('unix://socket');
+    // In the new layout, type is shown as a badge/tag within the card
+    const dockerType = within(region).getByText('Docker');
+    expect(dockerType).toBeInTheDocument();
   });
 
   test('Expect display name to be used in favor of name when available', async () => {

@@ -32,6 +32,8 @@ vi.mock(import('/@/lib/learning-center/LearningCenter.svelte'));
 vi.mock(import('/@/lib/dashboard/ProvidersSection.svelte'));
 vi.mock(import('/@/lib/dashboard/ReleaseNotesBox.svelte'));
 vi.mock(import('/@/lib/explore-features/ExploreFeatures.svelte'));
+vi.mock(import('/@/lib/dashboard/SystemOverviewCard.svelte'));
+vi.mock(import('/@/lib/dashboard/ResourceOverviewCard.svelte'));
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -40,6 +42,8 @@ beforeEach(() => {
 describe('getDefaultSectionNames', () => {
   test('should return section names in correct order', () => {
     expect(defaultSectionNames).toEqual([
+      'System Overview',
+      'Resource Overview',
       'Release Notes',
       'Extension Banners',
       'Explore Features',

@@ -11,8 +11,6 @@ export let onPreflightChecks: (status: CheckStatus[]) => void;
 
 let checksStatus: CheckStatus[] = [];
 
-let preflightChecksFailed = false;
-
 async function performUpdate(provider: ProviderInfo): Promise<void> {
   updateInProgress = true;
 
@@ -40,11 +38,9 @@ async function performUpdate(provider: ProviderInfo): Promise<void> {
   }
   if (checkSuccess) {
     await window.updateProvider(provider.internalId);
-    // reset checks
-    onPreflightChecks([]);
-  } else {
-    preflightChecksFailed = true;
   }
+  // Reset checks when done (success or failure/cancel)
+  onPreflightChecks([]);
 
   updateInProgress = false;
 }
@@ -53,9 +49,8 @@ async function performUpdate(provider: ProviderInfo): Promise<void> {
 {#if provider?.updateInfo?.version}
   <Button
     inProgress={updateInProgress}
-    disabled={preflightChecksFailed}
     icon={faBoxOpen}
-    padding="px-3 py-0.5"
+    padding="px-4 py-[5px]"
     on:click={(): Promise<void> => performUpdate(provider)}>
     Update to {provider.updateInfo.version}
   </Button>

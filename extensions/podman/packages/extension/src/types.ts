@@ -52,6 +52,7 @@ export type MachineInfo = {
   port: number;
   remoteUsername: string;
   identityPath: string;
+  isDefault?: boolean;
 };
 
 export type MachineListOutput = {

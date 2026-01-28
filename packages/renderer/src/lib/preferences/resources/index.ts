@@ -16,14 +16,11 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
-import ReleaseNotesBox from '/@/lib/dashboard/ReleaseNotesBox.svelte';
-
-import type { DashboardPageRegistryEntry } from './dashboard-page-registry.svelte';
-
-export function createReleaseNotesBox(): DashboardPageRegistryEntry {
-  return {
-    id: 'Release Notes',
-    originalOrder: 2,
-    component: ReleaseNotesBox,
-  };
-}
+export * from './connection-adapters';
+export { default as ResourceClusterCard } from './ResourceClusterCard.svelte';
+export { default as ResourceConnectionActions } from './ResourceConnectionActions.svelte';
+export { default as ResourceMachineCard } from './ResourceMachineCard.svelte';
+export { default as ResourceProviderSection } from './ResourceProviderSection.svelte';
+export { default as ResourceStatusBadge } from './ResourceStatusBadge.svelte';
+export * from './status-styles';
+export * from './types';

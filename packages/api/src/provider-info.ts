@@ -45,6 +45,10 @@ export interface ProviderContainerConnectionInfo {
   shellAccess?: boolean;
   type: 'docker' | 'podman';
   vmType?: { id: string; name: string };
+  /**
+   * Whether this connection is the default connection for CLI operations
+   */
+  isDefault?: boolean;
 }
 
 export interface ProviderKubernetesConnectionInfo {

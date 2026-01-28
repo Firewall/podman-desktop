@@ -251,6 +251,7 @@ async function doUpdateMachines(
       port: machine.Port,
       remoteUsername: machine.RemoteUsername,
       identityPath: machine.IdentityPath,
+      isDefault: machine.Default,
     });
 
     if (!podmanMachinesStatuses.has(machine.Name)) {
@@ -820,6 +821,7 @@ export async function registerProviderFor(
     },
     vmType: machineInfo.vmType,
     vmTypeDisplayName: getProviderLabel(machineInfo.vmType),
+    isDefault: machineInfo.isDefault,
   };
 
   // Since Podman 4.5, machines are using the same path for all sockets of machines

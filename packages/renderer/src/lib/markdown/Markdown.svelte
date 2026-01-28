@@ -8,10 +8,10 @@ UI guidelines -->
 }
 
 .markdown > :global(h1),
-:global(h2),
-:global(h3),
-:global(h4),
-:global(h5) {
+.markdown > :global(h2),
+.markdown > :global(h3),
+.markdown > :global(h4),
+.markdown > :global(h5) {
   font-size: revert;
   line-height: normal;
   font-weight: revert;

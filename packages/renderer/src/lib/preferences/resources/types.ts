@@ -16,14 +16,24 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
-import ReleaseNotesBox from '/@/lib/dashboard/ReleaseNotesBox.svelte';
+export type DisplayStatus = 'running' | 'stopped' | 'starting' | 'stopping' | 'error' | 'unknown';
 
-import type { DashboardPageRegistryEntry } from './dashboard-page-registry.svelte';
+export interface StatusStyles {
+  border: string;
+  iconBg: string;
+  iconColor: string;
+  badgeClass: string;
+  dotColor: string;
+  dimmed: boolean;
+  label: string;
+}
 
-export function createReleaseNotesBox(): DashboardPageRegistryEntry {
-  return {
-    id: 'Release Notes',
-    originalOrder: 2,
-    component: ReleaseNotesBox,
-  };
+export interface ResourceStat {
+  label: string;
+  value: string | number;
+}
+
+export interface CardDetail {
+  label: string;
+  value: string;
 }

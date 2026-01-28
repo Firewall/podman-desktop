@@ -1,26 +1,15 @@
 <script lang="ts">
-import { faCircleInfo, faTerminal } from '@fortawesome/free-solid-svg-icons';
 import type { ContainerProviderConnection } from '@podman-desktop/api';
-import { DropdownMenu, EmptyScreen, Tooltip } from '@podman-desktop/ui-svelte';
-import { Buffer } from 'buffer';
-import { filesize } from 'filesize';
+import { EmptyScreen } from '@podman-desktop/ui-svelte';
 import { onDestroy, onMount } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import type { Unsubscriber } from 'svelte/store';
-import Fa from 'svelte-fa';
 import { router } from 'tinro';
 
-import ContributionActions from '/@/lib/actions/ContributionActions.svelte';
 import type { ContextUI } from '/@/lib/context/context';
 import { ContextKeyExpr } from '/@/lib/context/contextKey';
-import Donut from '/@/lib/donut/Donut.svelte';
-import ActionsMenu from '/@/lib/image/ActionsMenu.svelte';
 import { normalizeOnboardingWhenClause } from '/@/lib/onboarding/onboarding-utils';
-import BooleanEnumDisplay from '/@/lib/ui/BooleanEnumDisplay.svelte';
-import ConnectionErrorInfoButton from '/@/lib/ui/ConnectionErrorInfoButton.svelte';
-import ConnectionStatus from '/@/lib/ui/ConnectionStatus.svelte';
 import EngineIcon from '/@/lib/ui/EngineIcon.svelte';
-import { capitalize } from '/@/lib/ui/Util';
 import { configurationProperties } from '/@/stores/configurationProperties';
 import { context } from '/@/stores/context';
 import { onboardingList } from '/@/stores/onboarding';
@@ -30,13 +19,17 @@ import type { Menu } from '/@api/menu.js';
 import { MenuContext } from '/@api/menu-context.js';
 import type { CheckStatus, ProviderConnectionInfo, ProviderInfo } from '/@api/provider-info';
 
-import { PeerProperties } from './PeerProperties';
 import { eventCollect } from './preferences-connection-rendering-task';
-import PreferencesConnectionActions from './PreferencesConnectionActions.svelte';
 import PreferencesConnectionsEmptyRendering from './PreferencesConnectionsEmptyRendering.svelte';
 import PreferencesProviderInstallationModal from './PreferencesProviderInstallationModal.svelte';
-import PreferencesResourcesRenderingCopyButton from './PreferencesResourcesRenderingCopyButton.svelte';
 import ProviderActionButtons from './ProviderActionButtons.svelte';
+import {
+  extractResourceStats,
+  ResourceClusterCard,
+  ResourceMachineCard,
+  ResourceProviderSection,
+  type ResourceStat,
+} from './resources';
 import SettingsPage from './SettingsPage.svelte';
 import {
   getProviderConnectionName,
@@ -72,7 +65,16 @@ onMount(async () => {
   });
 
   providersUnsubscribe = providerInfos.subscribe(providerInfosValue => {
-    providers = providerInfosValue;
+    // Sort providers: those with connections first, then those without
+    providers = [...providerInfosValue].sort((a, b) => {
+      const aHasConnections =
+        a.containerConnections.length > 0 || a.kubernetesConnections.length > 0 || a.vmConnections.length > 0;
+      const bHasConnections =
+        b.containerConnections.length > 0 || b.kubernetesConnections.length > 0 || b.vmConnections.length > 0;
+      if (aHasConnections && !bHasConnections) return -1;
+      if (!aHasConnections && bHasConnections) return 1;
+      return 0;
+    });
     const connectionNames: string[] = [];
     providers.forEach(provider => {
       if (
@@ -426,11 +428,16 @@ $effect(() => {
     providerElementMap[focus].scrollIntoView({ behavior: 'auto', block: 'start' });
   }
 });
+
+function getResourceStats(provider: ProviderInfo, connectionName: string): ResourceStat[] {
+  const configs = providerContainerConfiguration.get(provider.internalId) ?? [];
+  return extractResourceStats(configs, connectionName);
+}
 </script>
 
 <SettingsPage title="Resources">
   {#snippet subtitle()}
-    <span  class:hidden={providers.length === 0}>
+    <span class:hidden={providers.length === 0}>
       Additional provider information is available under <a
         href="/extensions"
         class="text-[var(--pd-content-text)] underline underline-offset-2">Extensions</a>
@@ -444,260 +451,75 @@ $effect(() => {
       message="Start an extension that manages containers or Kubernetes engines"
       hidden={providers.length > 0} />
 
-    {#each providers as provider (provider.id)}
-      <div
-        id={provider.id}
-        bind:this={providerElementMap[provider.id]}
-        class="bg-[var(--pd-invert-content-card-bg)] mb-5 rounded-md p-3 flex"
-        role="region"
-        aria-label={provider.id}>
-        <div role="region" aria-label="Provider Setup" class="border-r border-[var(--pd-content-divider)]">
-          <!-- left col - provider icon/name + "create new" button -->
-          <div class="min-w-[170px] max-w-[200px] pr-5 py-2">
-            <div class="flex">
-              {#if provider.images.icon}
-                {#if typeof provider.images.icon === 'string'}
-                  <img src={provider.images.icon} alt={provider.name} class="max-w-[40px] h-full" />
-                  <!-- TODO check theme used for image, now use dark by default -->
-                {:else}
-                  <img src={provider.images.icon.dark} alt={provider.name} class="max-w-[40px]" />
-                {/if}
-              {/if}
-              <span class="my-auto font-semibold text-[var(--pd-invert-content-card-header-text)] ml-3 break-words"
-                >{provider.name}</span>
-              {#if provider.version}
-                <span class="my-auto text-[var(--pd-content-sub-header)] ml-3 break-words"
-                  >v{provider.version}</span>
-              {/if}
-            </div>
+    {#each providers as provider, index (provider.id)}
+      {@const hasConnections =
+        provider.containerConnections.length > 0 ||
+        provider.kubernetesConnections.length > 0 ||
+        provider.vmConnections.length > 0}
+      {@const isLast = index === providers.length - 1}
+      <div bind:this={providerElementMap[provider.id]} class:pb-6={isLast}>
+        <ResourceProviderSection
+          id={provider.id}
+          title={provider.name}
+          version={provider.version}
+          icon={provider.images.icon}
+          isEmpty={!hasConnections}
+          emptyMessage={provider.emptyConnectionMarkdownDescription}>
+          {#snippet actionButtons()}
             <ProviderActionButtons
-              provider={provider}
-              globalContext={globalContext}
+              {provider}
+              {globalContext}
               providerInstallationInProgress={providerInstallationInProgress.get(provider.name) ?? false}
               onCreateNew={doCreateNew}
               onUpdatePreflightChecks={handleUpdatePreflightChecks}
-              isOnboardingEnabled={isOnboardingEnabled}
-              hasAnyConfiguration={hasAnyConfiguration} />
-          </div>
-        </div>
-        <!-- providers columns -->
-        <div
-          class="grow flex flex-wrap text-[var(--pd-invert-content-card-text)]"
-          role="region"
-          aria-label="Provider Connections">
-          <PreferencesConnectionsEmptyRendering
-            message={provider.emptyConnectionMarkdownDescription}
-            hidden={provider.containerConnections.length > 0 || provider.kubernetesConnections.length > 0 || provider.vmConnections.length > 0} />
-          {#each provider.containerConnections as container, index (index)}
-            {@const peerProperties = new PeerProperties()}
-            {@const rootfulInfo = getRootfulDisplayInfo(provider, container)}
-            <div class="px-5 py-2 w-[240px] border-r border-[var(--pd-content-divider)]" role="region" aria-label={container.name}>
-              <div class="float-right">
-                <Tooltip bottom tip="{provider.name} details">
-                  <button
-                    aria-label="{provider.name} details"
-                    type="button"
-                    onclick={(): void =>
-                      router.goto(
-                        `/preferences/container-connection/view/${provider.internalId}/${Buffer.from(
-                          container.name,
-                        ).toString('base64')}/${Buffer.from(container.endpoint.socketPath).toString('base64')}/summary`,
-                      )}>
-                    <Fa icon={faCircleInfo} />
-                  </button>
-                </Tooltip>
-              </div>
-              <div class="{container.status !== 'started' ? 'text-[var(--pd-content-sub-header)]' : ''} font-semibold">
-                {container.displayName}
-                {#if rootfulInfo}
-                  <span class="ml-2 text-sm text-[var(--pd-content-sub-header)]">
-                    (<BooleanEnumDisplay
-                      value={rootfulInfo.value}
-                      options={rootfulInfo.enum ?? []}
-                      ariaLabel="{rootfulInfo.description}: {rootfulInfo.value}" />)
-                  </span>
-                {/if}
-              </div>
-              <div class="flex" aria-label="Connection Status">
-                <ConnectionStatus status={container.status} />
-                {#if containerConnectionStatus.has(getProviderConnectionName(provider, container))}
-                  {@const status = containerConnectionStatus.get(getProviderConnectionName(provider, container))}
-                  <ConnectionErrorInfoButton status={status} />
-                {/if}
-              </div>
-              <div class="mt-2 text-[var(--pd-content-text)] text-xs" aria-label="{container.name} type">
-                {#if container.type === 'docker'}Docker{:else if container.type === 'podman'}Podman{/if} endpoint
-              </div>
-              <PreferencesResourcesRenderingCopyButton
-                class={container.status !== 'started' ? 'text-[var(--pd-content-sub-header)]' : ''}
-                path={container.endpoint.socketPath} />
-              {#if providerContainerConfiguration.has(provider.internalId)}
-                {@const providerConfiguration = providerContainerConfiguration.get(provider.internalId) ?? []}
-                <div
-                  class="flex mt-3 {container.status !== 'started' ? 'text-[var(--pd-content-sub-header)]' : ''}"
-                  role="group"
-                  aria-label="Provider Configuration">
-                  {#each providerConfiguration.filter(conf => conf.connection === container.name) as connectionSetting (connectionSetting.id)}
-                    {#if connectionSetting.format === 'cpu' || connectionSetting.format === 'cpuUsage'}
-                      {#if !peerProperties.isPeerProperty(connectionSetting.id)}
-                        {@const peerValue = peerProperties.getPeerProperty(
-                          connectionSetting.id,
-                          providerConfiguration.filter(conf => conf.connection === container.name),
-                        )}
-                        <div class="mr-4">
-                          <Donut
-                            title={connectionSetting.description}
-                            value={connectionSetting.value}
-                            percent={peerValue} />
-                        </div>
-                      {/if}
-                    {:else if connectionSetting.format === 'memory' || connectionSetting.format === 'memoryUsage' || connectionSetting.format === 'diskSize' || connectionSetting.format === 'diskSizeUsage'}
-                      {#if !peerProperties.isPeerProperty(connectionSetting.id)}
-                        {@const peerValue = peerProperties.getPeerProperty(
-                          connectionSetting.id,
-                          providerConfiguration.filter(conf => conf.connection === container.name),
-                        )}
-                        <div class="mr-4">
-                          <Donut
-                            title={connectionSetting.description}
-                            value={filesize(connectionSetting.value)}
-                            percent={peerValue} />
-                        </div>
-                      {/if}
-                    {:else if !connectionSetting.hidden}
-                      {connectionSetting.description}: {connectionSetting.value}
-                    {/if}
-                  {/each}
-                </div>
-              {/if}
-              <PreferencesConnectionActions
-                provider={provider}
+              {isOnboardingEnabled}
+              {hasAnyConfiguration} />
+          {/snippet}
+
+          {#if !hasConnections}
+            <PreferencesConnectionsEmptyRendering message={provider.emptyConnectionMarkdownDescription} hidden={false} />
+          {:else}
+            {#each provider.containerConnections as container (container.name)}
+              <ResourceMachineCard
+                {provider}
                 connection={container}
                 connectionStatus={containerConnectionStatus.get(getProviderConnectionName(provider, container))}
+                stats={getResourceStats(provider, container.name)}
+                rootfulInfo={getRootfulDisplayInfo(provider, container)}
+                {globalContext}
+                {contributionsContainerConnection}
                 updateConnectionStatus={updateContainerStatus}
-                addConnectionToRestartingQueue={addConnectionToRestartingQueue}>
-                {#snippet advanced_actions()}
-                  <span  class:hidden={providers.length === 0}>
-                    <Tooltip bottom tip="More Options">
-                      <ActionsMenu
-                        dropdownMenu={true}
-                        onBeforeToggle={(): void => {
-                          globalContext?.setValue('selectedProviderConnectionType', container.type);
-                          globalContext?.setValue('selectedProviderConnectionStatus', container.status);
-                      }}>
-                        <DropdownMenu.Item title="Open Terminal" icon={faTerminal} onClick={(): void => {router.goto(
-                          `/preferences/container-connection/view/${provider.internalId}/${Buffer.from(
-                            container.name,
-                          ).toString('base64')}/${Buffer.from(container.endpoint.socketPath).toString('base64')}/terminal`);}}/>
-                        <ContributionActions
-                          args={[container]}
-                          contextPrefix="providerConnectionItem"
-                          dropdownMenu={true}
-                          contributions={contributionsContainerConnection}
-                          detailed={false}
-                          onError={handleError} />
-                      </ActionsMenu>
-                    </Tooltip>
-                  </span>
-                {/snippet}
-              </PreferencesConnectionActions>
-              <div class="mt-1.5 text-[var(--pd-content-sub-header)] text-[9px] flex justify-between">
-                <div aria-label="Connection Type">{container.vmType ? capitalize(container.vmType.name) : ''}</div>
-              </div>
-            </div>
-          {/each}
-          {#each provider.kubernetesConnections as kubeConnection, index (index)}
-            <div class="px-5 py-2 w-[240px] border-r border-[var(--pd-content-divider)]" role="region" aria-label={kubeConnection.name}>
-              <div class="float-right">
-                <Tooltip bottom tip="{provider.name} details">
-                  <button
-                    aria-label="{provider.name} details"
-                    type="button"
-                    onclick={(): void =>
-                      router.goto(
-                        `/preferences/kubernetes-connection/${provider.internalId}/${Buffer.from(
-                          kubeConnection.endpoint.apiURL,
-                        ).toString('base64')}/summary`,
-                      )}>
-                    <Fa icon={faCircleInfo} />
-                  </button>
-                </Tooltip>
-              </div>
-              <div class="font-semibold">
-                {kubeConnection.name}
-              </div>
-              <div class="flex mt-1" aria-label="Connection Status">
-                <ConnectionStatus status={kubeConnection.status} />
-              </div>
-              <div class="mt-2">
-                <div class="text-[var(--pd-content-text)] text-xs">Kubernetes endpoint</div>
-                <div class="mt-1">
-                  <span class="my-auto text-xs" class:text-[var(--pd-content-sub-header)]={kubeConnection.status !== 'started'}
-                    >{kubeConnection.endpoint.apiURL}</span>
-                </div>
-              </div>
-              <PreferencesConnectionActions
-                provider={provider}
+                {addConnectionToRestartingQueue}
+                onError={handleError} />
+            {/each}
+            {#each provider.kubernetesConnections as kubeConnection (kubeConnection.name)}
+              <ResourceClusterCard
+                {provider}
                 connection={kubeConnection}
                 connectionStatus={containerConnectionStatus.get(getProviderConnectionName(provider, kubeConnection))}
                 updateConnectionStatus={updateContainerStatus}
-                addConnectionToRestartingQueue={addConnectionToRestartingQueue} />
-            </div>
-          {/each}
-          {#each provider.vmConnections as vmConnection, index (index)}
-          <div class="px-5 py-2 w-[240px] border-r border-[var(--pd-content-divider)]" role="region" aria-label={vmConnection.name}>
-            <div class="float-right">
-              <Tooltip bottom tip="{provider.name} details">
-                <button
-                  aria-label="{provider.name} details"
-                  type="button"
-                  onclick={(): void =>
-                    router.goto(
-                      `/preferences/vm-connection/${provider.internalId}/${vmConnection.name}/terminal`,
-                    )}>
-                  <Fa icon={faCircleInfo} />
-                </button>
-              </Tooltip>
-            </div>
-            <div class="font-semibold">
-              {vmConnection.name}
-            </div>
-            <div class="flex mt-1" aria-label="Connection Status">
-              <ConnectionStatus status={vmConnection.status} />
-              {#if containerConnectionStatus.has(getProviderConnectionName(provider, vmConnection))}
-                {@const status = containerConnectionStatus.get(getProviderConnectionName(provider, vmConnection))}
-                <ConnectionErrorInfoButton status={status} />
-              {/if}
-            </div>
-            <PreferencesConnectionActions
-              provider={provider}
-              connection={vmConnection}
-              connectionStatus={containerConnectionStatus.get(getProviderConnectionName(provider, vmConnection))}
-              updateConnectionStatus={updateContainerStatus}
-              addConnectionToRestartingQueue={addConnectionToRestartingQueue}>
-              {#snippet advanced_actions()}
-                <span  class:hidden={providers.length === 0}>
-                  <Tooltip bottom tip="More Options">
-                    <ActionsMenu dropdownMenu={true}>
-                      <DropdownMenu.Item title="Open Terminal" icon={faTerminal} onClick={(): void => router.goto(
-                        `/preferences/vm-connection/${provider.internalId}/${vmConnection.name}/terminal`,
-                      )}/>
-                    </ActionsMenu>
-                  </Tooltip>
-                </span>
-              {/snippet}
-            </PreferencesConnectionActions>
-          </div>
-        {/each}
-        </div>
+                {addConnectionToRestartingQueue} />
+            {/each}
+            {#each provider.vmConnections as vmConnection (vmConnection.name)}
+              <ResourceMachineCard
+                {provider}
+                connection={vmConnection}
+                connectionStatus={containerConnectionStatus.get(getProviderConnectionName(provider, vmConnection))}
+                {globalContext}
+                updateConnectionStatus={updateContainerStatus}
+                {addConnectionToRestartingQueue}
+                onError={handleError} />
+            {/each}
+          {/if}
+        </ResourceProviderSection>
       </div>
     {/each}
   </div>
   {#if displayInstallModal && providerToBeInstalled}
     <PreferencesProviderInstallationModal
-      providerToBeInstalled={providerToBeInstalled}
-      preflightChecks={preflightChecks}
+      {providerToBeInstalled}
+      {preflightChecks}
       closeCallback={hideInstallModal}
-      doCreateNew={doCreateNew} />
+      {doCreateNew} />
   {/if}
 </SettingsPage>

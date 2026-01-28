@@ -33,7 +33,7 @@ function getDefaultDashboardItems(): ListOrganizerItem[] {
   return dashboardPageRegistry.entries.map(entry => ({
     id: entry.id,
     label: entry.id,
-    enabled: true,
+    enabled: !entry.hidden, // Respect hidden property from registry
     originalOrder: entry.originalOrder,
   }));
 }

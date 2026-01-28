@@ -16,7 +16,13 @@
  * SPDX-License-Identifier: Apache-2.0
  ***********************************************************************/
 
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import type { StorybookConfig } from '@storybook/svelte-vite';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const config: StorybookConfig = {
   stories: ['../src/stories/**/*.mdx', '../src/stories/**/*.stories.@(js|jsx|ts|tsx|svelte)'],
@@ -35,6 +41,16 @@ const config: StorybookConfig = {
     options: {},
   },
   docs: {},
+  viteFinal: async config => {
+    // Add path aliases for renderer package imports
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '/@/': resolve(__dirname, '../../packages/renderer/src') + '/',
+      '/@api/': resolve(__dirname, '../../packages/api/src') + '/',
+    };
+    return config;
+  },
 };
 
 export default config;

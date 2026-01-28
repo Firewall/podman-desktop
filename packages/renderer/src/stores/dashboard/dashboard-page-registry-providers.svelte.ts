@@ -23,7 +23,8 @@ import type { DashboardPageRegistryEntry } from './dashboard-page-registry.svelt
 export function createProviders(): DashboardPageRegistryEntry {
   return {
     id: 'Providers',
-    originalOrder: 4,
+    originalOrder: 6,
+    hidden: true, // Hidden by default, users can re-enable via ListOrganizer
     component: ProvidersSection,
   };
 }

@@ -1,7 +1,6 @@
 <script lang="ts">
 import { faGear } from '@fortawesome/free-solid-svg-icons';
 import { Button, Tooltip } from '@podman-desktop/ui-svelte';
-import Fa from 'svelte-fa';
 import { router } from 'tinro';
 
 import type { ContextUI } from '/@/lib/context/context';
@@ -81,7 +80,7 @@ function handleSetup(): void {
 }
 </script>
 
-<div class="text-center mt-10 {className}">
+<div class="flex items-center gap-2 {className}">
   {#if showOnboardingSetup}
     <Button
       aria-label="Setup {provider.name}"
@@ -90,32 +89,31 @@ function handleSetup(): void {
       Setup ...
     </Button>
   {:else}
-    <div class="flex flex-row justify-around flex-wrap gap-2">
-      {#if showCreateNewButton}
-        <Tooltip bottom tip="Create new {providerDisplayName}">
-          <Button
-            aria-label="Create new {providerDisplayName}"
-            inProgress={providerInstallationInProgress}
-            onclick={handleCreateNew}>
-            {buttonTitle} ...
-          </Button>
-        </Tooltip>
-      {/if}
+    {#if showCreateNewButton}
+      <Tooltip bottom tip="Create new {providerDisplayName}">
+        <Button
+          aria-label="Create new {providerDisplayName}"
+          inProgress={providerInstallationInProgress}
+          onclick={handleCreateNew}>
+          {buttonTitle} ...
+        </Button>
+      </Tooltip>
+    {/if}
 
-      {#if showSetupButton}
+    {#if showSetupButton}
+      <Tooltip bottom tip="Setup {provider.name}">
         <Button
           aria-label="Setup {provider.name}"
-          title="Setup {provider.name}"
-          onclick={handleSetup}>
-          <Fa size="0.9x" icon={faGear} />
-        </Button>
-      {/if}
+          icon={faGear}
+          padding="px-3 py-[5px]"
+          onclick={handleSetup} />
+      </Tooltip>
+    {/if}
 
-      {#if showUpdateButton}
-        <ProviderUpdateButton
-          onPreflightChecks={onUpdatePreflightChecks}
-          provider={provider} />
-      {/if}
-    </div>
+    {#if showUpdateButton}
+      <ProviderUpdateButton
+        onPreflightChecks={onUpdatePreflightChecks}
+        provider={provider} />
+    {/if}
   {/if}
 </div>

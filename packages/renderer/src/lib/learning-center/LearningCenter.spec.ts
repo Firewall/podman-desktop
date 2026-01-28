@@ -55,7 +55,7 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-test('LearningCenter component shows carousel with guides', async () => {
+test('LearningCenter component shows guides in Learn tab', async () => {
   render(LearningCenter);
 
   await vi.waitFor(() => {
@@ -64,67 +64,60 @@ test('LearningCenter component shows carousel with guides', async () => {
   });
 });
 
-test('Clicking on LearningCenter title hides carousel with guides', async () => {
+test("LearningCenter shows tabs for Learn, Community, and What's New", async () => {
   render(LearningCenter);
-  await vi.waitFor(() => {
-    const firstCard = screen.getByText(guides[0].title);
-    expect(firstCard).toBeVisible();
+
+  const learnTab = screen.getByRole('button', { name: 'Learn' });
+  const communityTab = screen.getByRole('button', { name: 'Community' });
+  const whatsNewTab = screen.getByRole('button', { name: /What's New/i });
+
+  expect(learnTab).toBeInTheDocument();
+  expect(communityTab).toBeInTheDocument();
+  expect(whatsNewTab).toBeInTheDocument();
+});
+
+test('Clicking Community tab shows community items', async () => {
+  render(LearningCenter);
+
+  const communityTab = screen.getByRole('button', { name: 'Community' });
+  await fireEvent.click(communityTab);
+
+  await waitFor(() => {
+    expect(screen.getByText('Discord Community')).toBeInTheDocument();
+    expect(screen.getByText('GitHub Discussions')).toBeInTheDocument();
+  });
+});
+
+test("Clicking What's New tab shows release announcements", async () => {
+  render(LearningCenter);
+
+  const whatsNewTab = screen.getByRole('button', { name: /What's New/i });
+  await fireEvent.click(whatsNewTab);
+
+  await waitFor(() => {
+    expect(screen.getByText('Podman Desktop 1.26 Released')).toBeInTheDocument();
+    expect(screen.getByText('New Dashboard Experience')).toBeInTheDocument();
+  });
+});
+
+test('Clicking All button opens external documentation link', async () => {
+  render(LearningCenter);
+
+  const allButton = screen.getByRole('button', { name: /All/i });
+  await fireEvent.click(allButton);
+
+  expect(window.openExternal).toHaveBeenCalledWith('https://podman-desktop.io/docs');
+});
+
+test('Clicking a guide opens external link', async () => {
+  render(LearningCenter);
+
+  await waitFor(() => {
+    expect(screen.getByText(guides[0].title)).toBeVisible();
   });
 
-  const button = screen.getByRole('button', { name: 'Learning Center' });
-  expect(button).toBeInTheDocument();
-  expect(screen.queryByText(guides[0].title)).toBeInTheDocument();
-  await fireEvent.click(button);
-  await vi.waitFor(async () => {
-    expect(screen.queryByText(guides[0].title)).not.toBeInTheDocument();
-  });
-});
+  const guideButton = screen.getByRole('button', { name: new RegExp(guides[0].title) });
+  await fireEvent.click(guideButton);
 
-test('Toggling expansion sets configuration', async () => {
-  render(LearningCenter);
-
-  expect(window.updateConfigurationValue).not.toHaveBeenCalled();
-
-  const button = screen.getByRole('button', { name: 'Learning Center' });
-  expect(button).toBeInTheDocument();
-  await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'true'));
-
-  await fireEvent.click(button);
-  expect(window.updateConfigurationValue).toHaveBeenCalledWith('learningCenter.expanded', false);
-  await waitFor(() => expect(button).toHaveAttribute('aria-expanded', 'false'));
-
-  await fireEvent.click(button);
-  expect(window.updateConfigurationValue).toHaveBeenCalledWith('learningCenter.expanded', true);
-  expect(button).toHaveAttribute('aria-expanded', 'true');
-
-  await fireEvent.click(button);
-  expect(window.updateConfigurationValue).toHaveBeenCalledWith('learningCenter.expanded', false);
-  expect(button).toHaveAttribute('aria-expanded', 'false');
-});
-
-test('Expanded when the config value not set', async () => {
-  render(LearningCenter);
-
-  const button = screen.getByRole('button', { name: 'Learning Center' });
-  expect(button).toHaveAttribute('aria-expanded', 'true');
-});
-
-test('Collapsed when the config value is set to not expanded', async () => {
-  vi.mocked(window.getConfigurationValue).mockResolvedValue(false);
-  render(LearningCenter);
-
-  await waitFor(() => expect(window.getConfigurationValue).toBeCalled());
-
-  const button = screen.getByRole('button', { name: 'Learning Center' });
-  expect(button).toHaveAttribute('aria-expanded', 'false');
-});
-
-test('Expanded when the config value is set to expanded', async () => {
-  vi.mocked(window.getConfigurationValue).mockResolvedValue(true);
-  render(LearningCenter);
-
-  await waitFor(() => expect(window.getConfigurationValue).toBeCalled());
-
-  const button = screen.getByRole('button', { name: 'Learning Center' });
-  expect(button).toHaveAttribute('aria-expanded', 'true');
+  expect(window.openExternal).toHaveBeenCalledWith(guides[0].url);
 });
